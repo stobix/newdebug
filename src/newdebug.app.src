@@ -1,0 +1,10 @@
+{application, newdebug,
+    [
+        {description, "An application for sending debug messages."},
+        {vsn,"1.0"},
+        {modules,[newdebug,newdebug_sup]},
+        {registered,[newdebug]},
+        {applications,[kernel,stdlib,options]},
+        {mod,{newdebug,[]}},
+        {env,[]}]}.
+
