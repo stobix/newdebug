@@ -1,6 +1,5 @@
 {application, newdebug,
-    [
-        {description, "An application for sending debug messages."},
+    [{description, "A utility for printing pretty debug messages with timestamps."},
         {vsn,"0.0.0"},
         {modules,[newdebug,newdebug_sup]},
         {registered,[newdebug]},
