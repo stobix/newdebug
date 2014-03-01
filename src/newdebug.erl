@@ -22,7 +22,9 @@
         init/1,
         handle_call/3,
         handle_cast/2,
-        terminate/2
+        terminate/2,
+        code_change/3,
+        handle_info/2
     ]).
 % TODO: Create directories/files if nonexistent?
 
@@ -316,7 +318,7 @@ handle_cast({block_module,Module},State=#state{blocked_modules=Blocked}) ->
     {noreply,State#state{blocked_modules=lists:umerge([Module],lists:sort(Blocked))}};
 
 handle_cast({unblock_module,Module},State=#state{blocked_modules=Blocked}) ->
-     NotModule=fun(Module) -> false;(_) -> true end,
+     NotModule=fun(M) when M == Module -> false;(_) -> true end,
      {noreply,State#state{blocked_modules=lists:filter(NotModule,Blocked)}};
 
 handle_cast({add_file,File},State) ->
@@ -457,10 +459,10 @@ handle_cast({input,RawLevel,Module,Line,Self,FormatString,Msg},State) ->
             end
     end.
             
-terminate(Reason,State=#state{output=Files}) ->
+terminate(_Reason,_State=#state{output=Files}) ->
     %?DEBL(1,"Terminating ~p",[?MODULE]),
     lists:foreach(
-        fun({File,FD}) ->
+        fun({_File,FD}) ->
                 %?DEBL(1,"Closing file ~p",[{File,FD}]),
                 case file:close(FD) of
                     {error,enospc} -> file:close(FD);
@@ -468,3 +470,10 @@ terminate(Reason,State=#state{output=Files}) ->
                 end
         end,
         Files).
+
+
+code_change(_OldVsn, State, _Extra) ->
+        {ok, State}.
+
+handle_info(_Info, State) ->
+        {noreply, State}.
