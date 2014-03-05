@@ -98,7 +98,7 @@ init(_) ->
         {list,List} -> List;
         {string,List} -> [List]
     end,
-    ParsedLevels=lists:map(fun({String,Thing}) -> {list_to_atom(String),Thing} end, utils:flip(Levels)),
+    ParsedLevels=lists:map(fun({String,Thing}) -> {list_to_atom(String),Thing} end, vol_misc:flip(Levels)),
     DefaultLevel=case options:get(debug,default_level) of
         undefined -> "1";
         {ok,Something} -> Something
@@ -201,7 +201,7 @@ get_trigger_level() ->
 %% @doc set level at or below which output might be generated unless otherwise specified
 set_level(DefaultLevel) ->
     ParsedLevel = if 
-        is_number(DefaultLevel) -> utils:number_to_string(DefaultLevel);
+        is_number(DefaultLevel) -> vol_misc:number_to_string(DefaultLevel);
         true -> DefaultLevel
     end,
     gen_server:cast(?MODULE,{set_default_level,ParsedLevel}).
@@ -219,7 +219,7 @@ remove_file(FileName) ->
 set_level(Module,Level) ->
     % Numbers need to be in string form
     ParsedLevel = if 
-        is_number(Level) -> utils:number_to_string(Level);
+        is_number(Level) -> vol_misc:number_to_string(Level);
         true -> Level
     end,
     gen_server:cast(?MODULE,{set_level,Module,ParsedLevel}).
@@ -227,7 +227,7 @@ set_level(Module,Level) ->
 %% @doc set level at or below which output is generated 
 set_trigger_level(Level) ->
     ParsedLevel = if 
-        is_number(Level) -> utils:number_to_string(Level);
+        is_number(Level) -> vol_misc:number_to_string(Level);
         true -> Level
     end,
     gen_server:cast(?MODULE,{set_trigger_level,ParsedLevel}).
@@ -322,7 +322,7 @@ handle_cast({unblock_module,Module},State=#state{blocked_modules=Blocked}) ->
      {noreply,State#state{blocked_modules=lists:filter(NotModule,Blocked)}};
 
 handle_cast({add_file,File},State) ->
-    NewState=case lists:keyfind(utils:fix_home(File),1,State#state.output) of
+    NewState=case lists:keyfind(vol_misc:fix_home(File),1,State#state.output) of
         false ->
             case file:open(File,[append,write,raw]) of
                 {ok,FD} ->
@@ -338,7 +338,7 @@ handle_cast({add_file,File},State) ->
     {noreply,NewState};
 
 handle_cast({remove_file,File},State) ->
-    NewState=case lists:keysfind(utils:fix_home(File),1,State#state.output) of
+    NewState=case lists:keysfind(vol_misc:fix_home(File),1,State#state.output) of
         {value,{File,FD},TrimmedState} ->
             case file:close(FD) of
                 {error,enospc} -> file:close(FD);
