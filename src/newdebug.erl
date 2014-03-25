@@ -73,7 +73,7 @@ stop(_) -> ok.
         % Which levels of debugging are allowed for which modules
         levels=[]::[{module(),int_as_string()}],
         % Global trigger; only show levels below this regardless of specific modules' settings.
-        trigger="1",
+        trigger="10",
         % Level for modules with no level specified
         default_level="1"::int_as_string(),
         % Which output channels we have (excluding tty)
@@ -84,34 +84,58 @@ stop(_) -> ok.
 
 init() ->
     init(kaka).
-init(_) ->
-    %?DEBL(1,"Initiating ~p",[?MODULE]),
-    process_flag(trap_exit,true),
+
+set_default_values() ->
+    set_default_values(#state{}).
+
+set_default_values(State) ->
+    set_default_values(State,[debugging,debug_level,default_level,limit]).
+
+set_default_values(State,[]) -> State;
+
+set_default_values(State,[debugging|A]) ->
     Debugging = case options:get(debug,debugging) of
         undefined -> false;
         "false" ->   false;
         "off" ->     false;
         _ ->         true
     end,
-    Levels=case options:mget(debug,debug_level) of
-        undefined -> [];
-        {list,List} -> List;
-        {string,List} -> [List]
+    set_default_values(State#state{debugging=Debugging},A);
+
+set_default_values(State=#state{levels=Levels},[debug_level|A]) ->
+    NewLevels=case options:mget(debug,debug_level) of
+        undefined -> Levels;
+        {list,List} -> List++Levels;
+        {string,List} -> [List|Levels]
     end,
-    ParsedLevels=lists:map(fun({String,Thing}) -> {list_to_atom(String),Thing} end, vol_misc:flip(Levels)),
+    ParsedLevels=lists:map(
+            fun
+                ({String,Thing}) when is_list(String) -> {list_to_atom(String),Thing}; 
+                ({Atom,Thing}) when is_atom(Atom) -> {Atom,Thing} 
+            end, 
+            vol_misc:flip(NewLevels)),
+    set_default_values(State#state{levels=ParsedLevels},A);
+
+
+set_default_values(State=#state{default_level=Level},[default_level|A]) ->
     DefaultLevel=case options:get(debug,default_level) of
-        undefined -> "1";
+        undefined -> Level;
         {ok,Something} -> Something
     end,
+    set_default_values(State#state{default_level=DefaultLevel},A);
+
+set_default_values(State=#state{trigger=Trigger},[limit|A]) ->
     TriggerLevel = case options:get(debug,limit) of
-        undefined -> "1";
+        undefined -> Trigger;
         {ok,Other} -> Other
     end,
-    State=#state{
-            debugging=Debugging,
-            trigger=TriggerLevel,
-            default_level=DefaultLevel,
-            levels=ParsedLevels},
+    set_default_values(State#state{trigger=TriggerLevel},A).
+
+
+init(_) ->
+    %?DEBL(1,"Initiating ~p",[?MODULE]),
+    process_flag(trap_exit,true),
+    State=set_default_values(),
     case options:mget(debug,debug_file) of
         undefined ->
             {ok,State#state{tty=true}};
@@ -216,11 +240,14 @@ remove_file(FileName) ->
     gen_server:cast(?MODULE,{remove_file,FileName}).
 
 %% @doc set level at or below which output might be generated for the specific module
-set_level(Module,Level) ->
+set_level(Level,Module) when is_atom(Module) ->
+    set_level(Module,Level); 
+
+set_level(Module,Level) when is_atom(Module) ->
     % Numbers need to be in string form
     ParsedLevel = if 
         is_number(Level) -> vol_misc:number_to_string(Level);
-        true -> Level
+        is_list(Level) andalso hd(Level) =< $9 andalso hd(Level) >= $0-> Level
     end,
     gen_server:cast(?MODULE,{set_level,Module,ParsedLevel}).
 
