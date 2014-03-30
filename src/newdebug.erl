@@ -412,34 +412,34 @@ handle_cast({input,RawLevel,Module,Line,Self,FormatString,Msg},State) ->
                     integer_to_list(RawLevel);
                 RawLevel -> RawLevel
             end,
-            CurrentLevel = if
+            {BypassTrigger,CurrentLevel} = if
                 Level == err ->
-                    "0";
+                    {true,"0"};
                 true ->
                     % If the level is lower than the default for the module, return it for comparison
                     % Otherwise, return an impossibly high value that always fails to trigger.
-                    Comparison=case lists:keysearch(Module,1,Levels) of
+                    {Bypass,Comparison}=case lists:keysearch(Module,1,Levels) of
                         {value,{Module,CurLev}} when is_integer(CurLev) -> 
-                            integer_to_list(CurLev);
+                            {true,integer_to_list(CurLev)};
                         {value,{Module,CurLev}} when is_list(CurLev) -> 
-                            CurLev;
+                            {true,CurLev};
                         {value,{Module,CurLev}} ->
-                            CurLev;
+                            {true,CurLev};
                         _ -> 
-                            State#state.default_level
+                            {false,State#state.default_level}
                     end,
                     if
                         Comparison < Level ->
-                            [ignore];
+                            {false,[ignore]};
                         true ->
-                            Level
+                            {Bypass,Level}
                     end
             end,
             TriggerLevel = State#state.trigger,
             %debug:timestamp(1,?MODULE,?LINE,"CurrLevel: ~p, TriggerLevel: ~p",[CurrentLevel,TriggerLevel]);
             %?DEBL(4,"CurrLevel: ~p, TriggerLevel: ~p",[CurrentLevel,TriggerLevel]),
             if
-                CurrentLevel =< TriggerLevel ->
+                BypassTrigger orelse CurrentLevel =< TriggerLevel ->
                     %?DEBL(4," ~p =< ~p",[CurrentLevel,TriggerLevel]),
                     if 
                         not Debugging ->
