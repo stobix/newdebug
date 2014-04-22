@@ -300,8 +300,19 @@ timestamp(Level,Module,Line,Self,FormatString,Msg) ->
     Time=tuple_to_list(time()),
     LineInfo=[Module,Line,Self,?sp(Level)],
     LineFormat="\e[33m[~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~s\e[0m",
-    io_lib:format(LineFormat++FormatString++"~n",Time++LineInfo++Msg).
+    io_lib:format(LineFormat++long_p(FormatString)++"~n",Time++LineInfo++Msg).
 
+long_p(A) ->
+    % Better to reverse when the string is short, and to append to the front.
+    long_p(lists:reverse(A),[]).
+
+long_p([],Acc) -> Acc;
+
+long_p([$p,$~|Rest],Acc) ->
+    long_p(Rest,"~9999999p"++Acc);
+
+long_p([Other|Rest],Acc) ->
+    long_p(Rest,[Other|Acc]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% gen_server cast/call/terminate callbacks
