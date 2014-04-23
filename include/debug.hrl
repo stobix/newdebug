@@ -29,7 +29,7 @@
 -ifdef(newdebug).
 
 -define(DEBL(L,X,Y),
-    (fun({__Level,__Module}) ->
+    (fun({__Level,__Module}) when is_integer(__Level)->
             case __Level of 
                 1 ->
                     gen_server:cast(newdebug1,{input,__Module,?LINE,self(),X,Y});
@@ -52,6 +52,35 @@
                 10 ->
                     gen_server:cast(newdebug10,{input,__Module,?LINE,self(),X,Y})
             end;
+        ({__Module,__Level}) when is_integer(__Level)->
+            case __Level of 
+                1 ->
+                    gen_server:cast(newdebug1,{input,__Module,?LINE,self(),X,Y});
+                2 ->
+                    gen_server:cast(newdebug2,{input,__Module,?LINE,self(),X,Y});
+                3 ->
+                    gen_server:cast(newdebug3,{input,__Module,?LINE,self(),X,Y});
+                4 ->
+                    gen_server:cast(newdebug4,{input,__Module,?LINE,self(),X,Y});
+                5 ->
+                    gen_server:cast(newdebug5,{input,__Module,?LINE,self(),X,Y});
+                6 ->
+                    gen_server:cast(newdebug6,{input,__Module,?LINE,self(),X,Y});
+                7 ->
+                    gen_server:cast(newdebug7,{input,__Module,?LINE,self(),X,Y});
+                8 ->
+                    gen_server:cast(newdebug8,{input,__Module,?LINE,self(),X,Y});
+                9 ->
+                    gen_server:cast(newdebug9,{input,__Module,?LINE,self(),X,Y});
+                10 ->
+                    gen_server:cast(newdebug10,{input,__Module,?LINE,self(),X,Y})
+            end;
+        (err) ->
+                    gen_server:cast(newdebugerr,{input,?MODULE,?LINE,self(),X,Y});
+        ({__Module,err}) ->
+                    gen_server:cast(newdebugerr,{input,__Module,?LINE,self(),X,Y});
+        ({err,__Module}) ->
+                    gen_server:cast(newdebugerr,{input,__Module,?LINE,self(),X,Y});
         (__Level) ->
             case __Level of 
                 1 ->

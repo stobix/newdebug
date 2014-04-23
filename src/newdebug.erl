@@ -138,10 +138,9 @@ init() ->
 %
 
 init(_) ->
-    %?DEBL(1,"Initiating ~p",[?MODULE]),
     process_flag(trap_exit,true),
     lists:foreach(fun newdebug_processor_sup:start_child/1,?ERROR_LEVELS),
-    State=#state{},%set_default_values(),
+    State=#state{},% set_default_values() is deprecated, since we cannot depend on the options server lest rebar go crazy.
     newdebug_processor_sup:set_debugging(State#state.debugging),
     newdebug_processor_sup:set_trigger_level(State#state.trigger),
     newdebug_processor_sup:set_global_level(State#state.default_level),

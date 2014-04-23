@@ -15,6 +15,11 @@ start_link() ->
 
 init(_) ->
     {ok, {{one_for_one, 3, 10},
-            [{newdebug, {newdebug, start_link, []},
-                    permanent, 10, worker, [newdebug]}]}}.
+            [
+    {newdebug_processor_sup, {newdebug_processor_sup, start_link, []},
+                    permanent, 10, supervisor, [newdebug_processor_sup]},
+    {newdebug, {newdebug, start_link, []},
+                    permanent, 10, worker, [newdebug]}
+    
+    ]}}.
 

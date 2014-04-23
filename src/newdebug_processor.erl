@@ -60,6 +60,9 @@ start_link(N) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
+init(err) ->
+        {ok, #state{level=0}};
+
 init(N) ->
         {ok, #state{level=N}}.
 
@@ -120,7 +123,7 @@ handle_cast({input,Module,Line,Self,FormatString,Msg},State=#state{whitelist=Whi
 handle_cast(_Msg, State) ->
         {noreply, State}.
 
--define(sp(X),case X of {_,err} -> "(Error) "; err -> "(Error) "; A -> ?sc(A) end).
+-define(sp(X),case X of 0 -> "(Error) "; A -> ?sc(A) end).
 -define(sc(X),string:copies(" ",case X of {_,Y} -> Y; Y -> Y end)).
 
 timestamp(Level,Module,Line,Self,FormatString,Msg) -> 
