@@ -1,1 +1,3 @@
 ebin/.*
+syntax: glob
+*.swp
