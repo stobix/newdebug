@@ -1,9 +1,9 @@
 {application, newdebug,
     [{description, "A utility for printing pretty debug messages with timestamps."},
         {vsn,"0.0.0"},
-        {modules,[newdebug,newdebug_sup]},
+        {modules,[]},
         {registered,[newdebug]},
-        {applications,[kernel,stdlib,options]},
+        {applications,[kernel,stdlib,vol_tools]},
         {mod,{newdebug,[]}},
         {env,[]}]}.
 

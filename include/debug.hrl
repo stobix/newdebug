@@ -23,13 +23,60 @@
 
 -ifndef(debug_hrl).
 
-
 -define(debug_hrl,[]).
+
 
 -ifdef(newdebug).
 
--define(F1,newdebug:input).
--define(F2,newdebug:input).
+-define(DEBL(L,X,Y),
+    (fun({__Level,__Module}) ->
+            case __Level of 
+                1 ->
+                    gen_server:cast(newdebug1,{input,__Module,?LINE,self(),X,Y});
+                2 ->
+                    gen_server:cast(newdebug2,{input,__Module,?LINE,self(),X,Y});
+                3 ->
+                    gen_server:cast(newdebug3,{input,__Module,?LINE,self(),X,Y});
+                4 ->
+                    gen_server:cast(newdebug4,{input,__Module,?LINE,self(),X,Y});
+                5 ->
+                    gen_server:cast(newdebug5,{input,__Module,?LINE,self(),X,Y});
+                6 ->
+                    gen_server:cast(newdebug6,{input,__Module,?LINE,self(),X,Y});
+                7 ->
+                    gen_server:cast(newdebug7,{input,__Module,?LINE,self(),X,Y});
+                8 ->
+                    gen_server:cast(newdebug8,{input,__Module,?LINE,self(),X,Y});
+                9 ->
+                    gen_server:cast(newdebug9,{input,__Module,?LINE,self(),X,Y});
+                10 ->
+                    gen_server:cast(newdebug10,{input,__Module,?LINE,self(),X,Y})
+            end;
+        (__Level) ->
+            case __Level of 
+                1 ->
+                    gen_server:cast(newdebug1,{input,?MODULE,?LINE,self(),X,Y});
+                2 ->
+                    gen_server:cast(newdebug2,{input,?MODULE,?LINE,self(),X,Y});
+                3 ->
+                    gen_server:cast(newdebug3,{input,?MODULE,?LINE,self(),X,Y});
+                4 ->
+                    gen_server:cast(newdebug4,{input,?MODULE,?LINE,self(),X,Y});
+                5 ->
+                    gen_server:cast(newdebug5,{input,?MODULE,?LINE,self(),X,Y});
+                6 ->
+                    gen_server:cast(newdebug6,{input,?MODULE,?LINE,self(),X,Y});
+                7 ->
+                    gen_server:cast(newdebug7,{input,?MODULE,?LINE,self(),X,Y});
+                8 ->
+                    gen_server:cast(newdebug8,{input,?MODULE,?LINE,self(),X,Y});
+                9 ->
+                    gen_server:cast(newdebug9,{input,?MODULE,?LINE,self(),X,Y});
+                10 ->
+                    gen_server:cast(newdebug10,{input,?MODULE,?LINE,self(),X,Y})
+            end
+    end)(L)).
+
 
 -else.
 
@@ -37,25 +84,22 @@
 -ifdef(debug).
 
 -ifdef(timestamp).
--define(F1,debug:timestamp).
 -define(F2,debug:timestamp).
 -else.
--define(F1,debug:msg).
 -define(F2,debug:msg).
 -endif.
 
--else.
-
--define(F1(M,L1,L2,X),void).
--define(F2(M,L1,L2,X,Y),void).
-
--endif.
-
--endif.
-
--define(DEB1(L,X),?F2(L,?MODULE,?LINE,X,[])).
--define(DEB2(L,X,Y),?F2(L,?MODULE,?LINE,X,[Y])).
 -define(DEBL(L,X,Y),?F2(L,?MODULE,?LINE,X,Y)).
 
+-else.
+
+-define(DEBL(L,X,Y),ok).
+
+-endif.
+
+-endif.
+
+-define(DEB1(L,X),?DEBL(L,X,[])).
+-define(DEB2(L,X,Y),?DEBL(L,X,[Y])).
 
 -endif.
