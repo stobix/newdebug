@@ -390,9 +390,11 @@ handle_cast({remove_file,File},State) ->
     {noreply,NewState};
 
 handle_cast({set_default_level,DefaultLevel},State) ->
+    newdebug_processor_sup:set_global_level(DefaultLevel),
     {noreply,State#state{default_level=DefaultLevel}};
 
 handle_cast({set_trigger_level,Trigger},State) ->
+    newdebug_processor_sup:set_trigger_level(Trigger),
     {noreply,State#state{trigger=Trigger}};
 
 handle_cast({set_level,Module,Level},State=#state{levels=Levels}) ->
@@ -408,7 +410,8 @@ handle_cast({set_level,Module,Level},State=#state{levels=Levels}) ->
 handle_cast({set_tty,Bool},State) when Bool == false ; Bool == true -> 
     {noreply,State#state{tty=Bool}};
 
-handle_cast({set_debugging,Bool},State) when Bool == false ; Bool == true -> 
+handle_cast({set_debugging,Bool},State) when is_boolean(Bool) ->
+    newdebug_processor_sup:set_debugging(Bool),
     {noreply,State#state{debugging=Bool}};
 
 handle_cast({output,Message},State) ->
