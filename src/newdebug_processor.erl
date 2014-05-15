@@ -26,7 +26,8 @@
         debugging=true,
         trigger=0,
         global_level=0,
-        whitelist=[]::{module,level}
+        whitelist=[]::{module,level},
+        blacklist=[]::{module,level}
     }).
 
 %%%===================================================================
@@ -97,8 +98,18 @@ handle_call(_Request, _From, State) ->
 handle_cast({set_global,N},State) ->
     {noreply,State#state{global_level=N}};
 
-handle_cast({set_whitelist,List},State) ->
-    {noreply,State#state{whitelist=List}};
+handle_cast({set_whitelist,List},State=#state{level=Level}) ->
+    {Whitelist,Blacklist} =
+        lists:foldr(
+            fun
+                ({Module,MLevel},{WAcc,BAcc}) when MLevel < Level ->
+                    {WAcc,[Module|BAcc]};
+                ({Module,_MLevel},{WAcc,BAcc}) ->
+                    {[Module|WAcc],BAcc}
+            end,
+            {[],[]},
+            List),
+    {noreply,State#state{whitelist=Whitelist,blacklist=Blacklist}};
 
 handle_cast({set_debugging,B},State) ->
     {noreply,State#state{debugging=B}};
@@ -106,18 +117,14 @@ handle_cast({set_debugging,B},State) ->
 handle_cast({set_trigger,N},State) ->
     {noreply,State#state{trigger=N}};
 
-handle_cast({input,Module,Line,Self,FormatString,Msg},State=#state{level=Level,trigger=Trigger,debugging=Debugging, global_level=Global}) when Debugging andalso Level =< Global -> 
-    newdebug:output(timestamp(Level,Module,Line,Self,FormatString,Msg)),
+% When the global level is ≤ current, output unless the module is blacklisted.
+handle_cast({input,Module,Line,Self,FormatString,Msg},State=#state{level=Level,trigger=Trigger,debugging=Debugging, global_level=Global,blacklist=Blacklist}) when Debugging andalso Level =< Global -> 
+    lists:member(Module,Blacklist) orelse newdebug:output(timestamp(Level,Module,Line,Self,FormatString,Msg)),
     {noreply,State};
-    
-handle_cast({input,Module,Line,Self,FormatString,Msg},State=#state{whitelist=WhiteList,debugging=Debugging}) when Debugging ->
-    case lists:keyfind(Module,1,WhiteList) of
-        false -> ok;
-        {_,Level} when Level >= State#state.level -> % Output if the witelist level is above or the same as the level of the module. (A whitelisted module with level N can output messages up to, and including, level N)
-            newdebug:output(timestamp(Level,Module,Line,Self,FormatString,Msg));
-        _ ->
-            ok
-    end,
+
+% When the global level is > current, only output when the module is whitelisted.   
+handle_cast({input,Module,Line,Self,FormatString,Msg},State=#state{level=Level,whitelist=Whitelist,debugging=Debugging}) when Debugging ->
+    lists:member(Module,Whitelist) andalso newdebug:output(timestamp(Level,Module,Line,Self,FormatString,Msg)),
     {noreply,State};
 
 handle_cast(_Msg, State) ->
