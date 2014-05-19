@@ -275,31 +275,32 @@ blocked_modules() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
--define(sp(X),case X of {_,err} -> "(Error) "; err -> "(Error) "; A -> ?sc(A) end).
--define(sc(X),string:copies(" ",case X of {_,Y} -> Y; Y -> Y end)).
-
+spaces(err) -> "(Error) ";
+spaces({_,err}) -> "(Error) ";
+spaces({_,N}) -> string:copies(" ",N);
+spaces(N) -> string:copies(" ",N).
 
 msg(Level,Module,Line,Self,FormatString,Msg) when is_integer(Level) -> 
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,?sp(Level)]++Msg);
+    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
 
 msg(ListLevel,Module,Line,Self,FormatString,Msg) when is_list(ListLevel) -> 
     Level=list_to_integer(ListLevel),
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,?sp(Level)]++Msg);
+    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
 
 msg({_,Level},Module,Line,Self,FormatString,Msg) when is_integer(Level) -> 
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,?sp(Level)]++Msg);
+    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
 
 msg({_,ListLevel},Module,Line,Self,FormatString,Msg) when is_list(ListLevel) -> 
     Level=list_to_integer(ListLevel),
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,?sp(Level)]++Msg);
+    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
 
 % This is for err and such
 msg(Level,Module,Line,Self,FormatString,Msg) ->
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,?sp(Level)]++Msg).
+    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg).
 
 timestamp(Level,Module,Line,Self,FormatString,Msg) -> 
     Time=tuple_to_list(time()),
-    LineInfo=[Module,Line,Self,?sp(Level)],
+    LineInfo=[Module,Line,Self,spaces(Level)],
     LineFormat="\e[33m[~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~s\e[0m",
     io_lib:format(LineFormat++long_p(FormatString)++"~n",Time++LineInfo++Msg).
 
@@ -377,7 +378,7 @@ handle_cast({add_file,File},State) ->
     {noreply,NewState};
 
 handle_cast({remove_file,File},State) ->
-    NewState=case lists:keysfind(vol_misc:fix_home(File),1,State#state.output) of
+    NewState=case lists:keytake(vol_misc:fix_home(File),1,State#state.output) of
         {value,{File,FD},TrimmedState} ->
             case file:close(FD) of
                 {error,enospc} -> file:close(FD);

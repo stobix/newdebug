@@ -26,8 +26,8 @@
         debugging=true,
         trigger=0,
         global_level=0,
-        whitelist=[]::{module,level},
-        blacklist=[]::{module,level}
+        whitelist=[]::[{module,level}],
+        blacklist=[]::[{module,level}]
     }).
 
 %%%===================================================================
@@ -61,6 +61,7 @@ start_link(N) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
+-spec init(err|pos_integer()) -> no_return.
 init(err) ->
         {ok, #state{level=0}};
 
