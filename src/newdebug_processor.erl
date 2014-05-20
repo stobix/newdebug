@@ -61,7 +61,7 @@ start_link(N) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
--spec init(err|pos_integer()) -> no_return.
+-spec init(err|pos_integer()) -> {ok,#state{}}.
 init(err) ->
         {ok, #state{level=0}};
 

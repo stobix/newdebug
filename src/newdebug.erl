@@ -76,7 +76,7 @@ stop(_) -> ok.
         % Might use this later on. Statically set to true for now.
         timestamp=true::boolean(),
         % Which levels of debugging are allowed for which modules
-        levels=[]::[{module(),int_as_string()}],
+        levels=[]::[{module(),non_neg_integer()}],
         % Global trigger; only show levels below this regardless of specific modules' settings.
         trigger=10,
         % Level for modules with no level specified
