@@ -15,7 +15,6 @@
 -behaviour(gen_server).
 -behaviour(application).
 
--export([msg/6,timestamp/6]).
 -export([
         start_link/0,
         init/0,
@@ -37,13 +36,11 @@
 -export([start/2,stop/1]).
 
 -export([
-    input/5
-    ,output/1
+    output/1
     ,tty/0
     ,tty/1
     ,debugging/0
     ,debugging/1
-    ,status/0
     ,set_level/1
     ,set_level/2
     ,set_trigger_level/1
@@ -51,14 +48,10 @@
     ,get_level/1
     ,get_trigger_level/0
     ,add_file/1
-    ,block_module/1
-    ,unblock_module/1
-    ,blocked_modules/0
     ,remove_file/1
     ]).
 
 start_link() ->
-    %?DEBL(1,"Starting ~p",[?MODULE]),
     gen_server:start_link({local,?MODULE},?MODULE,[],[]).
 
 start(_,_) ->
@@ -66,8 +59,6 @@ start(_,_) ->
 
 stop(_) -> ok.
 
--type int_as_string()::[non_neg_integer()].
-    
 -record(state,{
         % Whether to output to tty or not
         tty=false::boolean(),
@@ -82,60 +73,12 @@ stop(_) -> ok.
         % Level for modules with no level specified
         default_level=1::non_neg_integer(),
         % Which output channels we have (excluding tty)
-        output=[]::[{Name::any(),Io_device::any()}],
-        % Which modules that should never be output from
-        blocked_modules=[]::[module()]
+        output=[]::[{Name::any(),Io_device::any()}]
     }).
 
 init() ->
     init(kaka).
 
-%set_default_values() ->
-%    set_default_values(#state{}).
-%
-%set_default_values(State) ->
-%    set_default_values(State,[debugging,debug_level,default_level,limit]).
-%
-%set_default_values(State,[]) -> State;
-%
-%set_default_values(State,[debugging|A]) ->
-%    Debugging = case options:get(debug,debugging) of
-%        undefined -> false;
-%        "false" ->   false;
-%        "off" ->     false;
-%        _ ->         true
-%    end,
-%    set_default_values(State#state{debugging=Debugging},A);
-%
-%set_default_values(State=#state{levels=Levels},[debug_level|A]) ->
-%    NewLevels=case options:mget(debug,debug_level) of
-%        undefined -> Levels;
-%        {list,List} -> List++Levels;
-%        {string,List} -> [List|Levels]
-%    end,
-%    ParsedLevels=lists:map(
-%            fun
-%                ({String,Thing}) when is_list(String) -> {list_to_atom(String),Thing}; 
-%                ({Atom,Thing}) when is_atom(Atom) -> {Atom,Thing} 
-%            end, 
-%            vol_misc:flip(NewLevels)),
-%    set_default_values(State#state{levels=ParsedLevels},A);
-%
-%
-%set_default_values(State=#state{default_level=Level},[default_level|A]) ->
-%    DefaultLevel=case options:get(debug,default_level) of
-%        undefined -> Level;
-%        {ok,Something} -> Something
-%    end,
-%    set_default_values(State#state{default_level=DefaultLevel},A);
-%
-%set_default_values(State=#state{trigger=Trigger},[limit|A]) ->
-%    TriggerLevel = case options:get(debug,limit) of
-%        undefined -> Trigger;
-%        {ok,Other} -> Other
-%    end,
-%    set_default_values(State#state{trigger=TriggerLevel},A).
-%
 
 init(_) ->
     process_flag(trap_exit,true),
@@ -145,39 +88,6 @@ init(_) ->
     newdebug_processor_sup:set_trigger_level(State#state.trigger),
     newdebug_processor_sup:set_global_level(State#state.default_level),
     {ok,State}.
-%    case options:mget(debug,debug_file) of
-%        undefined ->
-%            {ok,State#state{tty=true}};
-%        % If only some of several files has an error, we still get debug output to somewhere.
-%        % Thus, we don't really need to stop as long as one of the files succeed.
-%        {list,Files} ->
-%            {OpenedFiles,Errors}=lists:partition(fun({error,_E}) -> false; (_) -> true end,
-%                lists:map(
-%                        fun(File) ->
-%                                case file:open(File,[append,raw,write]) of
-%                                    {ok,FD} ->
-%                                        {File,FD};
-%                                    _Error ->
-%                                        error_logger:format("Couldn't open ~p for logging! (~p)",[File,_Error]),
-%                                        {error,File,_Error}
-%                                end
-%                        end,
-%                        Files)),
-%            case OpenedFiles of
-%                [] ->
-%                    {stop,{no_files_opened,Errors}};
-%                _ ->
-%                    {ok,State#state{output=OpenedFiles}}
-%            end;
-%        {string,File} ->
-%            case file:open(File,[append,write,raw]) of
-%                {ok,FD} ->
-%                    {ok,State#state{output=[{File,FD}]}};
-%                {error,_Error} -> 
-%                    error_logger:format("Couldn't open \"~s\" for logging! (~s)",[lists:flatten(File),file:format_error(_Error)]),
-%                    {stop,{could_not_open,File,_Error}}
-%            end
-%    end.
 
 %TODO rehash
 % For now, restarting the app suffices.
@@ -192,14 +102,6 @@ init(_) ->
 
 output(Message) ->
     gen_server:cast(?MODULE,{output,Message}).
-
-input(Level,Module,Line,FormatString,Msg) ->
-    gen_server:cast(?MODULE,{input,Level,Module,Line,self(),FormatString,Msg}).
-
-%% @doc Get the internal status of the {@module} server
-
-status() ->
-    gen_server:call(?MODULE,status).
 
 %% @doc whether output is written to standard tty output
 
@@ -258,64 +160,6 @@ set_level(Module,Level) when is_atom(Module) andalso (is_integer(Level) orelse L
 set_trigger_level(Level) when is_integer(Level)->
     newdebug_processor_sup:set_trigger_level(Level).
 
-%FIXME
-block_module(Module) ->
-    gen_server:cast(?MODULE,{block_module,Module}).
-%FIXME
-unblock_module(Module) ->
-    gen_server:cast(?MODULE,{unblock_module,Module}).
-%FIXME
-blocked_modules() ->
-    gen_server:call(?MODULE,blocked_modules).
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%% output utility functions
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-spaces(err) -> "(Error) ";
-spaces({_,err}) -> "(Error) ";
-spaces({_,N}) -> string:copies(" ",N);
-spaces(N) -> string:copies(" ",N).
-
-msg(Level,Module,Line,Self,FormatString,Msg) when is_integer(Level) -> 
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
-
-msg(ListLevel,Module,Line,Self,FormatString,Msg) when is_list(ListLevel) -> 
-    Level=list_to_integer(ListLevel),
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
-
-msg({_,Level},Module,Line,Self,FormatString,Msg) when is_integer(Level) -> 
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
-
-msg({_,ListLevel},Module,Line,Self,FormatString,Msg) when is_list(ListLevel) -> 
-    Level=list_to_integer(ListLevel),
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg);
-
-% This is for err and such
-msg(Level,Module,Line,Self,FormatString,Msg) ->
-    io_lib:format("~-10s:~4..0b ~w ~s"++FormatString++"~n",[Module,Line,Self,spaces(Level)]++Msg).
-
-timestamp(Level,Module,Line,Self,FormatString,Msg) -> 
-    Time=tuple_to_list(time()),
-    LineInfo=[Module,Line,Self,spaces(Level)],
-    LineFormat="\e[33m[~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~s\e[0m",
-    io_lib:format(LineFormat++long_p(FormatString)++"~n",Time++LineInfo++Msg).
-
-long_p(A) ->
-    % Better to reverse when the string is short, and to append to the front.
-    long_p(lists:reverse(A),[]).
-
-long_p([],Acc) -> Acc;
-
-long_p([$p,$~|Rest],Acc) ->
-    long_p(Rest,"~9999999p"++Acc);
-
-long_p([Other|Rest],Acc) ->
-    long_p(Rest,[Other|Acc]).
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% gen_server cast/call/terminate callbacks
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -332,7 +176,6 @@ handle_call({get_level,Module},_from,State) ->
         false ->
             {reply,undefined,State}
     end;
-
                                                               
 
 handle_call(get_trigger_level,_from,State) ->
@@ -342,24 +185,9 @@ handle_call(tty,_From,State) ->
     {reply,State#state.tty,State};
 
 handle_call(debugging,_From,State) ->
-    {reply,State#state.debugging,State};
-
-handle_call(status,_From,State) -> 
-    {reply,State,State};
-
-handle_call(blocked_modules,_From,State) ->
-    {reply,State#state.blocked_modules,State}.
-
-
+    {reply,State#state.debugging,State}.
 
 %%% Casts
-
-handle_cast({block_module,Module},State=#state{blocked_modules=Blocked}) ->
-    {noreply,State#state{blocked_modules=lists:umerge([Module],lists:sort(Blocked))}};
-
-handle_cast({unblock_module,Module},State=#state{blocked_modules=Blocked}) ->
-     NotModule=fun(M) when M == Module -> false;(_) -> true end,
-     {noreply,State#state{blocked_modules=lists:filter(NotModule,Blocked)}};
 
 handle_cast({add_file,File},State) ->
     NewState=case lists:keyfind(vol_misc:fix_home(File),1,State#state.output) of
@@ -438,96 +266,8 @@ handle_cast({output,Message},State) ->
             {noreply,State};
         true -> 
             {noreply,State}
-    end;
-    
-handle_cast({input,RawLevel,Module,Line,Self,FormatString,Msg},State) -> 
-    %?DEBL(3,"Got ~p ~p ~p ~p ~p",[Level,Module,Line,FormatString,Msg]),
-    case lists:member(Module,State#state.blocked_modules) of
-        true ->
-            {noreply,State};
-        false ->
-            Debugging= State#state.debugging,
-            Timestamp= State#state.timestamp,
-            Levels = State#state.levels,
-            TTY = State#state.tty,
-            Level= case RawLevel of
-                RawLevel when is_integer(RawLevel) ->
-                    integer_to_list(RawLevel);
-                RawLevel -> RawLevel
-            end,
-            {BypassTrigger,CurrentLevel} = if
-                Level == err ->
-                    {true,"0"};
-                true ->
-                    % If the level is lower than the default for the module, return it for comparison
-                    % Otherwise, return an impossibly high value that always fails to trigger.
-                    {Bypass,Comparison}=case lists:keysearch(Module,1,Levels) of
-                        {value,{Module,CurLev}} when is_integer(CurLev) -> 
-                            {true,integer_to_list(CurLev)};
-                        {value,{Module,CurLev}} when is_list(CurLev) -> 
-                            {true,CurLev};
-                        {value,{Module,CurLev}} ->
-                            {true,CurLev};
-                        _ -> 
-                            {false,State#state.default_level}
-                    end,
-                    if
-                        Comparison < Level ->
-                            {false,[ignore]};
-                        true ->
-                            {Bypass,Level}
-                    end
-            end,
-            TriggerLevel = State#state.trigger,
-            %debug:timestamp(1,?MODULE,?LINE,"CurrLevel: ~p, TriggerLevel: ~p",[CurrentLevel,TriggerLevel]);
-            %?DEBL(4,"CurrLevel: ~p, TriggerLevel: ~p",[CurrentLevel,TriggerLevel]),
-            if
-                BypassTrigger orelse CurrentLevel =< TriggerLevel ->
-                    %?DEBL(4," ~p =< ~p",[CurrentLevel,TriggerLevel]),
-                    if 
-                        not Debugging ->
-                            {noreply,State};
-                        Debugging ->
-                            Message=if
-                                Level == err ->
-                                    timestamp(Level,Module,Line,Self,FormatString,Msg);
-                                is_integer(Level) ->
-                                    timestamp(Level,Module,Line,Self,FormatString,Msg);
-                                is_list(Level) ->
-                                    timestamp(list_to_integer(Level),Module,Line,Self,FormatString,Msg);
-                                Timestamp ->
-                                    timestamp(Level,Module,Line,Self,FormatString,Msg);
-                                true ->
-                                    msg(Level,Module,Line,Self,FormatString,Msg)
-                            end,
-                            %?DEBL(5,"Outputting message ~s to ~p",[lists:flatten(Message),State#state.output]),
-                            lists:foreach(
-                                fun({_File,FD}) ->
-                                        try file:write(FD,Message) of
-                                            ok -> ok;
-                                            {error,Error} ->
-                                                error_logger:format("Couldn't write to \"~s\"! (~s)\n",[lists:flatten(_File),file:format_error(Error)])
-                                        catch
-                                            error:Error ->
-                                                error_logger:format("Couldn't write to \"~s\"!! (~s)\n",[lists:flatten(_File),Error])
-                                        end
-                                end,
-                                State#state.output), 
-                            if TTY ->
-                                    try io:format(Message) 
-                                    catch
-                                        Type:Error ->
-                                            error_logger:format("Couldn't write to standard_io! (~w)",[{Type,Error}])
-                                    end,
-                                    {noreply,State};
-                                true -> 
-                                    {noreply,State}
-                            end
-                    end;
-                CurrentLevel > TriggerLevel ->
-                    {noreply,State}
-            end
     end.
+    
             
 terminate(_Reason,_State=#state{output=Files}) ->
     %?DEBL(1,"Terminating ~p",[?MODULE]),

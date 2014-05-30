@@ -67,20 +67,20 @@ init([]) ->
 start_child(N) ->
     supervisor:start_child(newdebug_processor_sup,
         {N,
-         {newdebug_processor,start_link,[N]},
+         {newdebug_processor_spec,start_link,[N]},
          permanent,2000,worker,[newdebug_processor]}).
 
 set_global_level_for(N,M) ->
-    gen_server:cast(list_to_atom(lists:concat(["newdebug",N])),{set_global,M}).
+    list_to_atom(lists:concat(["newdebug",N])) ! {set_global,M}.
 
 set_debugging_for(N,M) ->
-    gen_server:cast(list_to_atom(lists:concat(["newdebug",N])),{set_debugging,M}).
+    list_to_atom(lists:concat(["newdebug",N])) ! {set_debugging,M}.
 
 set_trigger_level_for(N,M) ->
-    gen_server:cast(list_to_atom(lists:concat(["newdebug",N])),{set_trigger,M}).
+    list_to_atom(lists:concat(["newdebug",N])) ! {set_trigger,M}.
 
 set_whitelist_for(N,M) ->
-    gen_server:cast(list_to_atom(lists:concat(["newdebug",N])),{set_whitelist,M}).
+    list_to_atom(lists:concat(["newdebug",N])) ! {set_whitelist,M}.
 
 get_children() ->
     lists:map(fun vol_misc:fst/1,supervisor:which_children(?MODULE)).
