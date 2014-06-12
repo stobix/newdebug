@@ -49,6 +49,7 @@
     ,get_trigger_level/0
     ,add_file/1
     ,remove_file/1
+    ,status/0
     ]).
 
 start_link() ->
@@ -58,6 +59,9 @@ start(_,_) ->
     newdebug_sup:start_link().
 
 stop(_) -> ok.
+
+status() ->
+    gen_server:call(?MODULE,status).
 
 -record(state,{
         % Whether to output to tty or not
@@ -166,6 +170,10 @@ set_trigger_level(Level) when is_integer(Level)->
 
 %%% Calls
 
+% Needed for R16b1 if I want to know status.
+handle_call(status,_from,State) ->
+    {reply,State,State};
+
 handle_call(get_default_level,_from,State) ->
     {reply,State#state.default_level,State};
 
@@ -192,15 +200,16 @@ handle_call(debugging,_From,State) ->
 handle_cast({add_file,File},State) ->
     NewState=case lists:keyfind(vol_misc:fix_home(File),1,State#state.output) of
         false ->
+            io:format("adding file"),
             case file:open(File,[append,write,raw]) of
                 {ok,FD} ->
                     State#state{output=[{File,FD}]};
                 {error,_Error} -> 
-                    error_logger:format("Couldn't open \"~s\" for logging! (~s)",[lists:flatten(File),file:format_error(_Error)]),
+                    error_logger:format("Couldn't open ~9999p for logging! (~s)~n",[File,file:format_error(_Error)]),
                     State
             end;
         _ ->
-            error_logger:foreach("File \"~s\" already open!",[lists:flatten(File)]),
+            error_logger:format("File ~9999p already open!~n",[File]),
             State
     end,
     {noreply,NewState};
