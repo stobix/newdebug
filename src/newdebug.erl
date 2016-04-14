@@ -63,34 +63,46 @@ stop(_) -> ok.
 status() ->
     gen_server:call(?MODULE,status).
 
--record(state,{
+-type statemap()::#{
         % Whether to output to tty or not
-        tty=false::boolean(),
+        tty=>boolean(),
         % If there should be any debugging output
-        debugging=true::boolean(),
+        debugging=>boolean(),
         % Might use this later on. Statically set to true for now.
-        timestamp=true::boolean(),
+        timestamp=>boolean(),
         % Which levels of debugging are allowed for which modules
-        levels=[]::[{module(),non_neg_integer()}],
+        levels=>[{module(),non_neg_integer()}],
         % Global trigger; only show levels below this regardless of specific modules' settings.
-        trigger=10,
+        trigger=>non_neg_integer(),
         % Level for modules with no level specified
-        default_level=1::non_neg_integer(),
+        default_level=>non_neg_integer(),
         % Which output channels we have (excluding tty)
-        output=[]::[{Name::any(),Io_device::any()}]
-    }).
+        output=>[{Name::any(),Io_device::any()}]
+    }.
 
 init() ->
     init(kaka).
 
+-spec init(any()) -> statemap().
 
 init(_) ->
     process_flag(trap_exit,true),
     lists:foreach(fun newdebug_processor_sup:start_child/1,?ERROR_LEVELS),
-    State=#state{},% set_default_values() is deprecated, since we cannot depend on the options server lest rebar go crazy.
-    newdebug_processor_sup:set_debugging(State#state.debugging),
-    newdebug_processor_sup:set_trigger_level(State#state.trigger),
-    newdebug_processor_sup:set_global_level(State#state.default_level),
+    #{debugging:=Debug,trigger:=TLev,default_level:=GLev}
+    =State
+    =#{
+        tty=>false,
+        debugging=>true,
+        timestamp=>true,
+        levels=>[],
+        trigger=>10,
+        default_level=>10,
+        output=>[]
+
+    },% set_default_values() is deprecated, since we cannot depend on the options server lest rebar go crazy.
+    newdebug_processor_sup:set_debugging(Debug),
+    newdebug_processor_sup:set_trigger_level(TLev),
+    newdebug_processor_sup:set_global_level(GLev),
     {ok,State}.
 
 %TODO rehash
@@ -174,11 +186,11 @@ set_trigger_level(Level) when is_integer(Level)->
 handle_call(status,_from,State) ->
     {reply,State,State};
 
-handle_call(get_default_level,_from,State) ->
-    {reply,State#state.default_level,State};
+handle_call(get_default_level,_from,#{default_level:=DLev}=State) ->
+    {reply,DLev,State};
 
-handle_call({get_level,Module},_from,State) ->
-    case lists:keyfind(Module,1,State#state.levels) of
+handle_call({get_level,Module},_from,#{levels:=Ls}=State) ->
+    case lists:keyfind(Module,1,Ls) of
         {Module,Level} ->
             {reply,Level,State};
         false ->
@@ -186,24 +198,24 @@ handle_call({get_level,Module},_from,State) ->
     end;
                                                               
 
-handle_call(get_trigger_level,_from,State) ->
-    {reply,State#state.trigger,State};
+handle_call(get_trigger_level,_from,#{trigger:=T}=State) ->
+    {reply,T,State};
 
-handle_call(tty,_From,State) ->
-    {reply,State#state.tty,State};
+handle_call(tty,_From,#{tty:=TTY}=State) ->
+    {reply,TTY,State};
 
-handle_call(debugging,_From,State) ->
-    {reply,State#state.debugging,State}.
+handle_call(debugging,_From,#{debugging:=D}=State) ->
+    {reply,D,State}.
 
 %%% Casts
 
-handle_cast({add_file,File},State) ->
-    NewState=case lists:keyfind(vol_misc:fix_home(File),1,State#state.output) of
+handle_cast({add_file,File},#{output:=Output}=State) ->
+    NewState=case lists:keyfind(vol_misc:fix_home(File),1,Output) of
         false ->
             io:format("adding file"),
             case file:open(File,[append,write,raw]) of
                 {ok,FD} ->
-                    State#state{output=[{File,FD}]};
+                    State#{output:=[{File,FD}|Output]};
                 {error,_Error} -> 
                     error_logger:format("Couldn't open ~9999p for logging! (~s)~n",[File,file:format_error(_Error)]),
                     State
@@ -214,14 +226,14 @@ handle_cast({add_file,File},State) ->
     end,
     {noreply,NewState};
 
-handle_cast({remove_file,File},State) ->
-    NewState=case lists:keytake(vol_misc:fix_home(File),1,State#state.output) of
-        {value,{File,FD},TrimmedState} ->
+handle_cast({remove_file,File},#{output:=Output}=State) ->
+    NewState=case lists:keytake(vol_misc:fix_home(File),1,Output) of
+        {value,{File,FD},TrimmedOutput} ->
             case file:close(FD) of
                 {error,enospc} -> file:close(FD);
                 _ -> ok
             end,
-            TrimmedState;
+            State#{output:=TrimmedOutput};
         false ->
             State
     end,
@@ -229,13 +241,13 @@ handle_cast({remove_file,File},State) ->
 
 handle_cast({set_default_level,DefaultLevel},State) ->
     newdebug_processor_sup:set_global_level(DefaultLevel),
-    {noreply,State#state{default_level=DefaultLevel}};
+    {noreply,State#{default_level:=DefaultLevel}};
 
 handle_cast({set_trigger_level,Trigger},State) ->
     newdebug_processor_sup:set_trigger_level(Trigger),
-    {noreply,State#state{trigger=Trigger}};
+    {noreply,State#{trigger:=Trigger}};
 
-handle_cast({set_level,Module,Level},State=#state{levels=Levels}) ->
+handle_cast({set_level,Module,Level},State=#{levels:=Levels}) ->
     NewLevels=case lists:keytake(Module,1,Levels) of
         {value,_,StrippedLevels} ->
             [{Module,Level}|StrippedLevels];
@@ -243,16 +255,16 @@ handle_cast({set_level,Module,Level},State=#state{levels=Levels}) ->
             [{Module,Level}|Levels]
     end,
     newdebug_processor_sup:set_whitelist(NewLevels),
-    {noreply,State#state{levels=NewLevels}};
+    {noreply,State#{levels:=NewLevels}};
 
 handle_cast({set_tty,Bool},State) when Bool == false ; Bool == true -> 
-    {noreply,State#state{tty=Bool}};
+    {noreply,State#{tty:=Bool}};
 
 handle_cast({set_debugging,Bool},State) when is_boolean(Bool) ->
     newdebug_processor_sup:set_debugging(Bool),
-    {noreply,State#state{debugging=Bool}};
+    {noreply,State#{debugging:=Bool}};
 
-handle_cast({output,Message},State) ->
+handle_cast({output,Message},#{output:=Output,tty:=TTY}=State) ->
     lists:foreach(
         fun({_File,FD}) ->
                 try file:write(FD,Message) of
@@ -264,8 +276,7 @@ handle_cast({output,Message},State) ->
                         error_logger:format("Couldn't write to \"~s\"!! (~s)\n",[lists:flatten(_File),Error])
                 end
         end,
-        State#state.output), 
-    TTY = State#state.tty,
+        Output), 
     if TTY ->
             try io:format(Message) 
             catch
@@ -278,7 +289,7 @@ handle_cast({output,Message},State) ->
     end.
     
             
-terminate(_Reason,_State=#state{output=Files}) ->
+terminate(_Reason,_State=#{output:=Files}) ->
     %?DEBL(1,"Terminating ~p",[?MODULE]),
     lists:foreach(
         fun({_File,FD}) ->
