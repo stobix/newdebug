@@ -137,7 +137,7 @@ handle_cast(_Msg, State) ->
 timestamp(Level,Module,Line,Self,FormatString,Msg) -> 
     Time=tuple_to_list(time()),
     LineInfo=[Module,Line,Self,?sp(Level)],
-    LineFormat="\e[33m[~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~s\e[0m",
+    LineFormat="\e[33m[~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~ts\e[0m",
     io_lib:format(LineFormat++long_p(FormatString)++"~n",Time++LineInfo++Msg).
 
 long_p(A) ->

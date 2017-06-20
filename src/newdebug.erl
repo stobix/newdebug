@@ -25,9 +25,6 @@
         code_change/3,
         handle_info/2
     ]).
-% TODO: Create directories/files if nonexistent?
-
-% TODO: Create debug_reporter_N, N ∈ {0..10,err}, where each reporter handles messages for the appropriate level, and the switching is done in the ?DEB_ macros.
 
 -include("../include/debug.hrl").
 

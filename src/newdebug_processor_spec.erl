@@ -155,7 +155,7 @@ timestamp(Level,Module,Line,Self,FormatString,Msg) ->
             string:copies(" ",Level)
     end,
     LineInfo=[Y,Mo,D,H,M,S,Module,Line,Self,Spaces],
-    LineFormat="\e[33m[~4..0b-~2..0b-~2..0b ~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~s\e[0m",
+    LineFormat="\e[33m[~4..0b-~2..0b-~2..0b ~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~ts\e[0m",
     io_lib:format(LineFormat++long_p(FormatString)++"~n",LineInfo++Msg).
 
 long_p(A) ->
