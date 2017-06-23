@@ -21,6 +21,8 @@
          terminate/2,
          code_change/3]).
 
+ -export([timestamp/6]).
+
 -record(state, {
         level=0,
         debugging=true,
@@ -138,7 +140,7 @@ timestamp(Level,Module,Line,Self,FormatString,Msg) ->
     Time=tuple_to_list(time()),
     LineInfo=[Module,Line,Self,?sp(Level)],
     LineFormat="\e[33m[~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~ts\e[0m",
-    io_lib:format(LineFormat++long_p(FormatString)++"~n",Time++LineInfo++Msg).
+    unicode:characters_to_binary(io_lib:format(LineFormat++long_p(FormatString)++"~n",Time++LineInfo++Msg)).
 
 long_p(A) ->
     % Better to reverse when the string is short, and to append to the front.

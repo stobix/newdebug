@@ -156,7 +156,7 @@ timestamp(Level,Module,Line,Self,FormatString,Msg) ->
     end,
     LineInfo=[Y,Mo,D,H,M,S,Module,Line,Self,Spaces],
     LineFormat="\e[33m[~4..0b-~2..0b-~2..0b ~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~ts\e[0m",
-    io_lib:format(LineFormat++long_p(FormatString)++"~n",LineInfo++Msg).
+    unicode:characters_to_binary(io_lib:format(LineFormat++long_p(FormatString)++"~n",LineInfo++Msg)).
 
 long_p(A) ->
     % Better to reverse when the string is short, and to append to the front.
@@ -165,7 +165,7 @@ long_p(A) ->
 long_p([],Acc) -> Acc;
 
 long_p([$p,$~|Rest],Acc) ->
-    long_p(Rest,"~9999999p"++Acc);
+    long_p(Rest,"~9999999tp"++Acc);
 
 long_p([Other|Rest],Acc) ->
     long_p(Rest,[Other|Acc]).

@@ -267,10 +267,10 @@ handle_cast({output,Message},#{output:=Output,tty:=TTY}=State) ->
                 try file:write(FD,Message) of
                     ok -> ok;
                     {error,Error} ->
-                        error_logger:format("Couldn't write to \"~s\"! (~s)\n",[lists:flatten(_File),file:format_error(Error)])
+                      error_logger:format("Couldn't write to \"~tp\"! (~ts). String: ~999999tp\n",[_File,file:format_error(Error),Message])
                 catch
                     error:Error ->
-                        error_logger:format("Couldn't write to \"~s\"!! (~s)\n",[lists:flatten(_File),Error])
+                        error_logger:format("Couldn't write to \"~tp\"!! (~tp). String: ~999999tp\n",[_File,Error,Message])
                 end
         end,
         Output), 
