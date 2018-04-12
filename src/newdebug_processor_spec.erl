@@ -62,6 +62,29 @@ init(Parent,N) ->
 %% @doc Our main loop, designed to handle system messages.  
 loop(Parent, Debug, Level, Debugging, Trigger, Global, Whitelist,Blacklist) ->
     receive  
+
+        {input,_Module,_Line,_Function,_Self,_FormatString,_Msg} when not Debugging ->
+            loop(Parent, Debug, Level, Debugging, Trigger, Global, Whitelist,Blacklist);
+
+        {input,Module,Line,Function,Self,FormatString,Msg} when Level =< Global ->
+            IsBlack=lists:member(Module,Blacklist),
+            if 
+                IsBlack -> ok;
+                true -> 
+                    newdebug:output(timestamp(Level,Module,Line,Function,Self,FormatString,Msg))
+            end,
+            loop(Parent, Debug, Level, Debugging, Trigger, Global, Whitelist,Blacklist);
+
+        {input,Module,Line,Function,Self,FormatString,Msg} ->
+            IsWhite=lists:member(Module,Whitelist),
+            if 
+                IsWhite -> 
+                     newdebug:output(timestamp(Level,Module,Line,Function,Self,FormatString,Msg));
+                true -> 
+                     ok
+            end,
+            loop(Parent, Debug, Level, Debugging, Trigger, Global, Whitelist,Blacklist);
+
         {input,_Module,_Line,_Self,_FormatString,_Msg} when not Debugging ->
             loop(Parent, Debug, Level, Debugging, Trigger, Global, Whitelist,Blacklist);
 
@@ -83,6 +106,7 @@ loop(Parent, Debug, Level, Debugging, Trigger, Global, Whitelist,Blacklist) ->
                      ok
             end,
             loop(Parent, Debug, Level, Debugging, Trigger, Global, Whitelist,Blacklist);
+
 
         {system, From, get_state} ->
             State = [{level,Level},{debugging,Debugging},{trigger,Trigger},{global,Global},{whitelist,Whitelist},{blacklist,Blacklist}],
@@ -146,6 +170,18 @@ system_code_change(State, _Module, _OldVsn, _Extra) ->
     io:format("Changed code!~n"),  
     {ok, State}.  
 
+timestamp(Level,Module,Line,Function,Self,FormatString,Msg) -> 
+    {Y,Mo,D}=date(),
+    {H,M,S}=time(),
+    Spaces=case Level of
+        0 -> "\e[31;1m (Error) \e[0m";
+        _ ->
+            string:copies(" ",Level)
+    end,
+    LineInfo=[Y,Mo,D,H,M,S,Module,Function,Line,Self,Spaces],
+    LineFormat="\e[33m[~4..0b-~2..0b-~2..0b ~2..0b:~2..0b:~2..0b]\e[36m ~-10s\e[34m~-15s\e[35m~4..0b\e[32m ~w\e[0m ~ts\e[0m",
+    io_lib:format(LineFormat++long_p(FormatString)++"~n",LineInfo++Msg).
+
 timestamp(Level,Module,Line,Self,FormatString,Msg) -> 
     {Y,Mo,D}=date(),
     {H,M,S}=time(),
@@ -155,8 +191,8 @@ timestamp(Level,Module,Line,Self,FormatString,Msg) ->
             string:copies(" ",Level)
     end,
     LineInfo=[Y,Mo,D,H,M,S,Module,Line,Self,Spaces],
-    LineFormat="\e[33m[~4..0b-~2..0b-~2..0b ~2..0b:~2..0b:~2..0b]\e[32m ~-10s\e[34m~4..0b\e[31m ~w\e[0m ~ts\e[0m",
-    unicode:characters_to_binary(io_lib:format(LineFormat++long_p(FormatString)++"~n",LineInfo++Msg)).
+    LineFormat="\e[33m[~4..0b-~2..0b-~2..0b ~2..0b:~2..0b:~2..0b]\e[36m ~-10s\e[35m~4..0b\e[32m ~w\e[0m ~ts\e[0m",
+    io_lib:format(LineFormat++long_p(FormatString)++"~n",LineInfo++Msg).
 
 long_p(A) ->
     % Better to reverse when the string is short, and to append to the front.

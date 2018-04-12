@@ -264,7 +264,7 @@ handle_cast({set_debugging,Bool},State) when is_boolean(Bool) ->
 handle_cast({output,Message},#{output:=Output,tty:=TTY}=State) ->
     lists:foreach(
         fun({_File,FD}) ->
-                try file:write(FD,Message) of
+                try file:write(FD,unicode:characters_to_binary(Message)) of
                     ok -> ok;
                     {error,Error} ->
                       error_logger:format("Couldn't write to \"~tp\"! (~ts). String: ~999999tp\n",[_File,file:format_error(Error),Message])
